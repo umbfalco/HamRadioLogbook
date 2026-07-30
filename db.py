@@ -54,8 +54,14 @@ _DXCC_NAMES = {
 _default_db = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logbook.db")
 DB_PATH = os.environ.get("DATABASE_PATH", _default_db)
 
-# Ensure the parent directory exists (important when using a volume mount)
-os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+# Create parent directory only if needed and permitted.
+# On Render the persistent disk is already mounted by the platform — no mkdir needed.
+_db_dir = os.path.dirname(DB_PATH)
+if _db_dir and not os.path.exists(_db_dir):
+    try:
+        os.makedirs(_db_dir, exist_ok=True)
+    except PermissionError:
+        pass  # Mounted volume: directory exists but was not yet visible; let SQLite fail clearly.
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS users (
