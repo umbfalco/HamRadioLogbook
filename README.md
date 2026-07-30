@@ -194,7 +194,29 @@ python manage_db.py reset     # ⚠ Reset completo (chiede conferma)
 
 ## 🌐 Deployment in produzione
 
-### Gunicorn + Nginx (VPS Linux)
+### ☁️ Render (cloud — raccomandato)
+
+Il modo più semplice per pubblicare online senza gestire server.
+
+**1. Crea il Web Service su [render.com](https://render.com):**
+- Build command: `pip install -r requirements.txt`
+- Start command: `gunicorn -w 1 -b 0.0.0.0:$PORT app:app`
+
+**2. Aggiungi un Persistent Disk** (scheda *Disks*):
+- Mount path: `/var/data`
+
+**3. Variabili d'ambiente** (scheda *Environment*):
+```
+DATABASE_PATH  = /var/data/logbook.db
+SECRET_KEY     = <stringa-random-64-chars>
+DEBUG          = false
+```
+
+> 📖 Guida dettagliata con tutti i passi: [`docs/INSTALLAZIONE.md § 7.5`](docs/INSTALLAZIONE.md)
+
+---
+
+### 🖥️ Gunicorn + Nginx (VPS Linux)
 
 ```bash
 # Installa Gunicorn
@@ -242,7 +264,7 @@ sudo certbot --nginx -d logbook.mio-dominio.it
 | Documento | Contenuto |
 |-----------|-----------|
 | [`docs/TECNICA.md`](docs/TECNICA.md) | Architettura, schema DB, API, moduli, estendibilità |
-| [`docs/INSTALLAZIONE.md`](docs/INSTALLAZIONE.md) | Installazione locale, VPS, Nginx, systemd, HTTPS, backup |
+| [`docs/INSTALLAZIONE.md`](docs/INSTALLAZIONE.md) | Installazione locale, Render (cloud), VPS, Nginx, systemd, HTTPS, backup |
 | [`docs/UTENTE.md`](docs/UTENTE.md) | Manuale d'uso completo per l'operatore |
 
 ---

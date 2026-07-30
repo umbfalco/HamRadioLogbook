@@ -17,6 +17,7 @@
    - 7.2 [Nginx come reverse proxy](#72-nginx-come-reverse-proxy)
    - 7.3 [Systemd service](#73-systemd-service)
    - 7.4 [HTTPS con Let's Encrypt](#74-https-con-lets-encrypt)
+   - 7.5 [Deploy su Render (cloud)](#75-deploy-su-render-cloud)
 8. [Aggiornamento](#8-aggiornamento)
 9. [Backup e ripristino](#9-backup-e-ripristino)
 10. [Risoluzione problemi comuni](#10-risoluzione-problemi-comuni)
@@ -295,6 +296,105 @@ Certbot configurerà automaticamente Nginx per HTTPS e imposterà il rinnovo aut
 Verificare il rinnovo automatico:
 ```bash
 sudo certbot renew --dry-run
+```
+
+---
+
+### 7.5 Deploy su Render (cloud)
+
+[Render](https://render.com) è una piattaforma cloud che supporta app Python con SQLite su disco persistente — ideale per questo progetto senza bisogno di gestire server.
+
+#### Prerequisiti
+- Account gratuito su [render.com](https://render.com)
+- Repository GitHub con il codice del progetto
+- File `requirements.txt` presente nel progetto
+
+#### Passo 1 — Crea un Web Service
+
+1. Dashboard Render → **New +** → **Web Service**
+2. Connetti il repository GitHub
+3. Configura:
+   - **Name:** `ham-radio-logbook` (o come preferisci)
+   - **Region:** Frankfurt (EU) — più vicino all'Italia
+   - **Branch:** `main`
+   - **Runtime:** Python 3
+   - **Build Command:** `pip install -r requirements.txt`
+   - **Start Command:** `gunicorn -w 1 -b 0.0.0.0:$PORT app:app`
+
+> **Nota:** usare `-w 1` (1 worker) per evitare conflitti di scrittura su SQLite. Con WAL mode abilitato si può aumentare a 2.
+
+#### Passo 2 — Aggiungi un Persistent Disk
+
+Il filesystem di Render è **effimero**: tutto ciò che non è su un disco persistente viene cancellato ad ogni deploy. Il database SQLite **deve** stare su un disco persistente.
+
+1. Nella pagina del servizio → scheda **Disks** → **Add Disk**
+2. Configura:
+   - **Name:** `logbook-data`
+   - **Mount Path:** `/var/data`
+   - **Size:** `1 GB` (piano a pagamento — circa $0.25/mese)
+
+> ⚠️ I dischi persistenti non sono disponibili sul piano **Free** di Render. Richiedono almeno il piano **Starter** (~$7/mese per il servizio + $0.25/GB per il disco).
+
+#### Passo 3 — Variabili d'ambiente
+
+Nella scheda **Environment** del servizio, aggiungi:
+
+| Chiave | Valore | Note |
+|--------|--------|------|
+| `DATABASE_PATH` | `/var/data/logbook.db` | Percorso sul disco persistente |
+| `SECRET_KEY` | `<stringa-random-64-chars>` | Genera con `python -c "import secrets; print(secrets.token_hex(32))"` |
+| `DEBUG` | `false` | Mai `true` in produzione |
+| `SESSION_LIFETIME_DAYS` | `30` | Durata sessione in giorni |
+| `SYNC_INTERVAL_MIN` | `5` | Intervallo sync MapForHam |
+
+> Le credenziali MapForHam (username e API key) **non** vanno qui: ogni utente le configura dal proprio pannello Impostazioni dell'app.
+
+#### Passo 4 — Primo deploy
+
+Render esegue il deploy automaticamente al push su `main`. Al termine:
+
+1. Aprire l'URL fornito da Render (es. `https://ham-radio-logbook.onrender.com`)
+2. Navigare su `/register` per creare il primo account
+3. Accedere con le credenziali appena create
+
+#### Passo 5 — Inizializzazione del database (opzionale)
+
+Se vuoi pre-popolare il DB con dati di esempio, usa la **Shell** di Render:
+
+1. Dashboard → servizio → scheda **Shell**
+2. Esegui:
+   ```bash
+   python manage_db.py init
+   # oppure con dati demo:
+   python manage_db.py seed
+   ```
+
+#### Aggiornamento automatico
+
+Ogni push su `main` avvia un nuovo deploy automatico su Render. Il disco persistente viene mantenuto tra i deploy — i dati del logbook sono al sicuro.
+
+#### Backup su Render
+
+Dalla **Shell** di Render:
+```bash
+python manage_db.py backup
+# Crea: /var/data/logbook_backup_YYYYMMDD_HHMMSS.db
+```
+
+Per scaricare il backup localmente, usa il comando ADIF export dall'app (sezione Esporta).
+
+#### Riepilogo architettura su Render
+
+```
+Browser / Smartphone
+        │ HTTPS (certificato automatico Render)
+        ▼
+  Render Web Service
+  (Gunicorn + Flask)
+        │
+        ▼
+  Persistent Disk /var/data
+  └── logbook.db  (SQLite)
 ```
 
 ---

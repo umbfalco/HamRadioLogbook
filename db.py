@@ -48,7 +48,14 @@ _DXCC_NAMES = {
     '4X':'Israele','4Z':'Israele',
 }
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "logbook.db")
+# On Render (or any server with a persistent disk), set DATABASE_PATH to the
+# volume mount path, e.g. DATABASE_PATH=/var/data/logbook.db
+# Falls back to the app directory for local development.
+_default_db = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logbook.db")
+DB_PATH = os.environ.get("DATABASE_PATH", _default_db)
+
+# Ensure the parent directory exists (important when using a volume mount)
+os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS users (

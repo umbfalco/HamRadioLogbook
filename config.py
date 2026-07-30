@@ -31,3 +31,8 @@ SESSION_LIFETIME_DAYS = int(os.environ.get("SESSION_LIFETIME_DAYS", "30"))
 
 # ── Background sync ──────────────────────────────────────────────────────────
 SYNC_INTERVAL_MIN = int(os.environ.get("SYNC_INTERVAL_MIN", "5"))
+
+# ── Database ─────────────────────────────────────────────────────────────────
+# On Render: set DATABASE_PATH=/var/data/logbook.db (persistent disk mount).
+# Locally: leave unset — defaults to logbook.db next to app.py.
+DATABASE_PATH = os.environ.get("DATABASE_PATH", "")
