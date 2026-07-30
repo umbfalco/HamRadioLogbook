@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#1a3a5c">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Logbook">
+  <title>Ham Radio Logbook</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/icons/icon-192.svg">
+  <!-- Bootstrap 5 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Bootstrap Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <!-- Leaflet (mappa QSO) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<!-- Offline banner -->
+<div id="offline-banner">
+  <i class="bi bi-wifi-off"></i> Nessuna connessione — i QSO verranno salvati localmente e sincronizzati al ritorno online
+</div>
+
+<!-- Navbar -->
+<nav class="navbar navbar-expand-md navbar-ham sticky-top">
+  <div class="container-fluid">
+    <a class="navbar-brand" href="#" onclick="showSection('dashboard')">
+      <i class="bi bi-broadcast-pin me-1"></i>Ham Logbook
+    </a>
+    <div class="d-flex align-items-center gap-2 ms-auto">
+      <!-- Sync badge -->
+      <span id="sync-badge" class="badge bg-secondary" title="QSO in coda offline" onclick="triggerSync()" style="cursor:pointer">
+        <i class="bi bi-arrow-repeat"></i> <span id="sync-count">0</span>
+      </span>
+      <!-- Online dot -->
+      <span id="online-dot" class="sync-dot ok" title="Online"></span>
+      <!-- Hamburger -->
+      <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navmenu">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+    </div>
+    <div class="collapse navbar-collapse" id="navmenu">
+      <ul class="navbar-nav ms-auto gap-1 mt-2 mt-md-0">
+        <li class="nav-item"><a class="nav-link" href="#" onclick="showSection('dashboard')"><i class="bi bi-journal-text me-1"></i>Logbook</a></li>
+        <li class="nav-item"><a class="nav-link" href="#" onclick="showSection('new')"><i class="bi bi-plus-circle me-1"></i>Nuovo QSO</a></li>
+        <li class="nav-item"><a class="nav-link" href="#" onclick="showSection('report')"><i class="bi bi-bar-chart-line me-1"></i>Report</a></li>
+        <li class="nav-item"><a class="nav-link" href="#" onclick="showSection('map')"><i class="bi bi-map me-1"></i>Mappa</a></li>
+        <li class="nav-item"><a class="nav-link" href="#" onclick="showSection('station')"><i class="bi bi-broadcast-pin me-1"></i>Stazione</a></li>
+        <li class="nav-item"><a class="nav-link" href="#" onclick="showSection('adif')"><i class="bi bi-file-earmark-arrow-down me-1"></i>Esporta</a></li>
+        <li class="nav-item"><a class="nav-link" href="#" onclick="showSection('settings')"><i class="bi bi-gear me-1"></i>Impostazioni</a></li>
+        <li class="nav-item d-flex align-items-center">
+          <span class="navbar-text text-warning me-2 fw-bold" id="navbar-callsign" style="font-size:.9rem"></span>
+          <a class="nav-link text-warning" href="/logout" title="Esci"><i class="bi bi-box-arrow-right me-1"></i>Esci</a>
+        </li>
+      </ul>
+    </div>
+  </div>
+</nav>
+
+<div class="container py-3 container-main">
+
+  <!-- ── DASHBOARD ── -->
+  <section id="sec-dashboard" class="section-active">
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+      <h5 class="mb-0"><i class="bi bi-journal-text me-1"></i>I miei QSO</h5>
+      <div class="d-flex gap-2 flex-wrap">
+        <input id="search-input" class="form-control form-control-sm" style="max-width:180px" placeholder="Cerca callsign…" oninput="filterTable()">
+        <button class="btn btn-sm btn-ham-primary" onclick="showSection('new')"><i class="bi bi-plus-lg me-1"></i>Nuovo QSO</button>
+        <button class="btn btn-sm btn-outline-secondary" onclick="loadQSOs()"><i class="bi bi-arrow-clockwise"></i></button>
+      </div>
+    </div>
+    <!-- Sync status bar -->
+    <div id="sync-status-bar" class="alert alert-secondary d-flex align-items-center gap-2 py-2 mb-3" style="font-size:.82rem">
+      <span class="sync-dot off" id="status-dot"></span>
+      <span id="sync-status-text">Caricamento stato sync…</span>
+      <button class="btn btn-sm btn-outline-secondary ms-auto py-0" onclick="triggerSync()">Sincronizza ora</button>
+    </div>
+    <!-- Table -->
+    <div class="card section-card">
+      <div class="card-body p-0" id="qso-table-wrap">
+        <table class="table table-hover mb-0" id="qso-table">
+          <thead>
+            <tr>
+              <th>Data</th><th>Ora</th><th>Nominativo</th><th>Banda</th>
+              <th>Modo</th><th>RST↑</th><th>RST↓</th><th>Nome</th>
+              <th>Sync</th><th></th>
+            </tr>
+          </thead>
+          <tbody id="qso-tbody">
+            <tr><td colspan="10" class="text-center py-4 text-muted">Caricamento…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div id="qso-count" class="text-muted mt-2" style="font-size:.8rem"></div>
+  </section>
+
+  <!-- ── NUOVO / MODIFICA QSO ── -->
+  <section id="sec-new" style="display:none">
+    <div class="card section-card">
+      <div class="card-header d-flex align-items-center gap-2">
+        <i class="bi bi-plus-circle text-primary"></i>
+        <span id="form-title">Nuovo QSO</span>
+        <button class="btn btn-sm btn-outline-secondary ms-auto" onclick="showSection('dashboard')">
+          <i class="bi bi-arrow-left"></i> Indietro
+        </button>
+      </div>
+      <div class="card-body">
+        <form id="qso-form" onsubmit="submitQSO(event)" novalidate>
+          <input type="hidden" id="edit-id">
+
+          <!-- Row 1: Data e ora -->
+          <div class="row g-3 mb-3">
+            <div class="col-6 col-md-3">
+              <label class="form-label">Data <span class="required-star">*</span></label>
+              <input type="date" class="form-control" id="qso_date" required>
+            </div>
+            <div class="col-6 col-md-2">
+              <label class="form-label">Ora ON <span class="required-star">*</span></label>
+              <input type="time" class="form-control" id="time_on" required>
+            </div>
+            <div class="col-6 col-md-2">
+              <label class="form-label">Data OFF</label>
+              <input type="date" class="form-control" id="qso_date_off">
+            </div>
+            <div class="col-6 col-md-2">
+              <label class="form-label">Ora OFF</label>
+              <input type="time" class="form-control" id="time_off">
+            </div>
+          </div>
+
+          <!-- Row 2: Nominativo -->
+          <div class="row g-3 mb-3">
+            <div class="col-12 col-md-4">
+              <label class="form-label">Nominativo <span class="required-star">*</span></label>
+              <div class="input-group">
+                <input type="text" class="form-control text-uppercase" id="callsign"
+                  placeholder="ES. IU1FIG" required
+                  oninput="this.value=this.value.toUpperCase()"
+                  onblur="lookupCallsign()">
+                <button type="button" class="btn btn-outline-secondary" onclick="lookupCallsign()" title="Cerca callsign su MFH">
+                  <i class="bi bi-search"></i>
+                </button>
+              </div>
+              <div id="callsign-info" class="form-text text-success mt-1"></div>
+            </div>
+            <div class="col-6 col-md-3">
+              <label class="form-label">Nome op.</label>
+              <input type="text" class="form-control" id="name" placeholder="Nome">
+            </div>
+            <div class="col-6 col-md-3">
+              <label class="form-label">QTH</label>
+              <input type="text" class="form-control" id="qth" placeholder="Città">
+            </div>
+          </div>
+
+          <!-- Row 3: Banda / Modo / Frequenza -->
+          <div class="row g-3 mb-3">
+            <div class="col-6 col-md-2">
+              <label class="form-label">Banda</label>
+              <select class="form-select" id="band" onchange="bandToFreq()">
+                <option value="">—</option>
+                <option>160m</option><option>80m</option><option>60m</option>
+                <option>40m</option><option>30m</option><option>20m</option>
+                <option>17m</option><option>15m</option><option>12m</option>
+                <option>10m</option><option>6m</option><option>4m</option>
+                <option>2m</option><option>70cm</option><option>23cm</option>
+              </select>
+            </div>
+            <div class="col-6 col-md-2">
+              <label class="form-label">Modo</label>
+              <select class="form-select" id="mode">
+                <option value="">—</option>
+                <option>SSB</option><option>USB</option><option>LSB</option>
+                <option>CW</option><option>FM</option><option>AM</option>
+                <option>FT8</option><option>FT4</option><option>WSPR</option>
+                <option>PSK31</option><option>RTTY</option><option>JS8</option>
+                <option>DIGITALVOICE</option><option>SSTV</option>
+              </select>
+            </div>
+            <div class="col-6 col-md-2">
+              <label class="form-label">Freq (MHz)</label>
+              <input type="text" class="form-control" id="freq" placeholder="14.225">
+            </div>
+            <div class="col-6 col-md-2">
+              <label class="form-label">Potenza (W)</label>
+              <input type="number" class="form-control" id="tx_pwr" placeholder="100" min="0">
+            </div>
+          </div>
+
+          <!-- Row 4: RST + Gridsquare + DXCC info -->
+          <div class="row g-3 mb-2">
+            <div class="col-6 col-md-2">
+              <label class="form-label">RST inviato</label>
+              <input type="text" class="form-control" id="rst_sent" placeholder="59">
+            </div>
+            <div class="col-6 col-md-2">
+              <label class="form-label">RST ricevuto</label>
+              <input type="text" class="form-control" id="rst_rcvd" placeholder="59">
+            </div>
+            <div class="col-6 col-md-3">
+              <label class="form-label">Gridsquare stazione</label>
+              <input type="text" class="form-control text-uppercase" id="gridsquare" placeholder="JN45" maxlength="8"
+                oninput="this.value=this.value.toUpperCase()">
+            </div>
+            <div class="col-6 col-md-3">
+              <label class="form-label">Il mio Gridsquare</label>
+              <input type="text" class="form-control text-uppercase" id="my_gridsquare" placeholder="JN45" maxlength="8"
+                oninput="this.value=this.value.toUpperCase()">
+            </div>
+          </div>
+          <!-- Row 4b: DXCC / CQ / ITU (auto-filled by lookup) -->
+          <div class="row g-2 mb-3" id="dxcc-row" style="display:none">
+            <div class="col-12 col-md-3">
+              <label class="form-label form-label-sm text-muted">Paese</label>
+              <input type="text" class="form-control form-control-sm bg-light" id="country_display" placeholder="—" readonly tabindex="-1">
+            </div>
+            <div class="col-4 col-md-2">
+              <label class="form-label form-label-sm text-muted">DXCC</label>
+              <input type="text" class="form-control form-control-sm bg-light" id="dxcc" placeholder="—" maxlength="10">
+            </div>
+            <div class="col-4 col-md-2">
+              <label class="form-label form-label-sm text-muted">CQ Zone</label>
+              <input type="number" class="form-control form-control-sm bg-light" id="cq_zone" placeholder="—" min="1" max="40">
+            </div>
+            <div class="col-4 col-md-2">
+              <label class="form-label form-label-sm text-muted">ITU Zone</label>
+              <input type="number" class="form-control form-control-sm bg-light" id="itu_zone" placeholder="—" min="1" max="90">
+            </div>
+            <div class="col-12 col-md-3 d-flex align-items-end">
+              <span id="lookup-source" class="badge bg-secondary"></span>
+            </div>
+          </div>
+
+          <!-- Row 5: Antenna + POTA / Note -->
+          <div class="row g-3 mb-3">
+            <div class="col-12 col-md-4">
+              <label class="form-label"><i class="bi bi-reception-4 me-1"></i>Antenna utilizzata</label>
+              <select class="form-select" id="antenna_id">
+                <option value="">— Nessuna / non specificata —</option>
+              </select>
+            </div>
+            <div class="col-6 col-md-2">
+              <label class="form-label">My POTA ref</label>
+              <input type="text" class="form-control" id="my_pota_ref" placeholder="I-XXXX">
+            </div>
+            <div class="col-6 col-md-2">
+              <label class="form-label">POTA ref stazione</label>
+              <input type="text" class="form-control" id="pota_ref" placeholder="I-XXXX">
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Commento</label>
+            <input type="text" class="form-control" id="comment" placeholder="Note sul QSO">
+          </div>
+          <div class="mb-4">
+            <label class="form-label">Note private</label>
+            <textarea class="form-control" id="notes" rows="2" placeholder="Note interne (non inviate a MFH)"></textarea>
+          </div>
+
+          <div class="d-flex gap-2 flex-wrap">
+            <button type="submit" class="btn btn-ham-primary">
+              <i class="bi bi-save me-1"></i><span id="submit-label">Salva QSO</span>
+            </button>
+            <button type="button" class="btn btn-outline-secondary" onclick="resetForm(); showSection('dashboard')">
+              Annulla
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── ADIF / EXPORT ── -->
+  <section id="sec-adif" style="display:none">
+    <div class="row g-4">
+      <!-- Export -->
+      <div class="col-12 col-md-7">
+        <div class="card section-card h-100">
+          <div class="card-header"><i class="bi bi-download me-1"></i>Esporta Logbook</div>
+          <div class="card-body">
+            <p class="text-muted mb-4">Scarica l'intero logbook nel formato preferito.</p>
+            <div class="d-grid gap-3">
+              <!-- ADIF -->
+              <div class="d-flex align-items-center gap-3 p-3 rounded" style="background:rgba(79,195,247,.08);border:1px solid rgba(79,195,247,.25)">
+                <div class="flex-shrink-0 fs-2">📻</div>
+                <div class="flex-grow-1">
+                  <div class="fw-bold">ADIF <span class="badge bg-secondary fw-normal">.adi</span></div>
+                  <small class="text-muted">Standard radioamatoriale, compatibile con WSJT-X, Log4OM, HRD…</small>
+                </div>
+                <a href="/api/export/adif" class="btn btn-ham-gold btn-sm" download="logbook.adi">
+                  <i class="bi bi-file-earmark-arrow-down me-1"></i>Scarica
+                </a>
+              </div>
+              <!-- CSV -->
+              <div class="d-flex align-items-center gap-3 p-3 rounded" style="background:rgba(76,175,80,.08);border:1px solid rgba(76,175,80,.25)">
+                <div class="flex-shrink-0 fs-2">📊</div>
+                <div class="flex-grow-1">
+                  <div class="fw-bold">CSV <span class="badge bg-secondary fw-normal">.csv</span></div>
+                  <small class="text-muted">Foglio di calcolo, compatibile con Excel, LibreOffice Calc…</small>
+                </div>
+                <a href="/api/export/csv" class="btn btn-success btn-sm" download="logbook.csv">
+                  <i class="bi bi-file-earmark-spreadsheet me-1"></i>Scarica
+                </a>
+              </div>
+              <!-- PDF -->
+              <div class="d-flex align-items-center gap-3 p-3 rounded" style="background:rgba(244,67,54,.08);border:1px solid rgba(244,67,54,.25)">
+                <div class="flex-shrink-0 fs-2">📄</div>
+                <div class="flex-grow-1">
+                  <div class="fw-bold">PDF <span class="badge bg-secondary fw-normal">.pdf</span></div>
+                  <small class="text-muted">Tabella formattata A4 orizzontale, pronta per la stampa.</small>
+                </div>
+                <a href="/api/export/pdf" class="btn btn-danger btn-sm" download="logbook.pdf">
+                  <i class="bi bi-file-earmark-pdf me-1"></i>Scarica
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Import -->
+      <div class="col-12 col-md-5">
+        <div class="card section-card h-100">
+          <div class="card-header"><i class="bi bi-upload me-1"></i>Importa ADIF</div>
+          <div class="card-body d-flex flex-column">
+            <p class="text-muted">Carica un file .adi o .adif. I duplicati (stessa callsign, data e ora) vengono automaticamente saltati.</p>
+            <div id="adif-dropzone" class="mb-3" onclick="document.getElementById('adif-file').click()"
+              ondragover="adifDragOver(event)" ondragleave="adifDragLeave(event)" ondrop="adifDrop(event)">
+              <i class="bi bi-cloud-upload fs-2 text-secondary d-block mb-2"></i>
+              Trascina qui il file ADIF<br><small class="text-muted">oppure clicca per selezionarlo</small>
+            </div>
+            <input type="file" id="adif-file" accept=".adi,.adif,.txt" style="display:none" onchange="importAdif(this.files[0])">
+            <div id="adif-result" class="mt-2"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── IMPOSTAZIONI ── -->
+  <section id="sec-settings" style="display:none">
+    <div class="card section-card">
+      <div class="card-header"><i class="bi bi-gear me-1"></i>Impostazioni</div>
+      <div class="card-body">
+        <form id="settings-form" onsubmit="saveSettings(event)" novalidate>
+          <h6 class="text-muted mb-3">Profilo utente</h6>
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <label class="form-label">Nome e Cognome</label>
+              <input type="text" class="form-control" id="cfg-fullname" placeholder="Es. Mario Rossi">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Email</label>
+              <input type="email" class="form-control" id="cfg-email" placeholder="mario@esempio.it">
+            </div>
+          </div>
+          <hr>
+          <h6 class="text-muted mb-3">Credenziali MapForHam</h6>
+          <div class="mb-3">
+            <label class="form-label">Username MFH (nominativo)</label>
+            <input type="text" class="form-control text-uppercase" id="cfg-username" placeholder="Es. IU1FIG"
+              oninput="this.value=this.value.toUpperCase()">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">API Key MFH</label>
+            <div class="input-group">
+              <input type="password" class="form-control" id="cfg-apikey" placeholder="Lascia vuoto per non modificare">
+              <button type="button" class="btn btn-outline-secondary" onclick="toggleApiKeyVisibility()">
+                <i class="bi bi-eye" id="apikey-eye"></i>
+              </button>
+            </div>
+            <div class="form-text">Ottieni la tua API key su <a href="https://www.mapforham.com" target="_blank">mapforham.com</a></div>
+          </div>
+          <hr>
+          <h6 class="text-muted mb-3">La mia stazione</h6>
+          <div class="row g-3 mb-3">
+            <div class="col-6 col-md-3">
+              <label class="form-label">Il mio Gridsquare (QTH)</label>
+              <input type="text" class="form-control text-uppercase" id="cfg-gridsquare" placeholder="Es. JN70"
+                maxlength="8" oninput="this.value=this.value.toUpperCase()">
+              <div class="form-text">Usato come centro della mappa QSO</div>
+            </div>
+          </div>
+          <hr>
+          <h6 class="text-muted mb-3">Sincronizzazione automatica</h6>
+          <div class="mb-3">
+            <label class="form-label">Intervallo sync (minuti)</label>
+            <input type="number" class="form-control" id="cfg-sync-interval" min="1" max="60" value="5" style="max-width:120px">
+          </div>
+          <div class="d-flex gap-2 flex-wrap mb-4">
+            <button type="submit" class="btn btn-ham-primary">
+              <i class="bi bi-save me-1"></i>Salva impostazioni
+            </button>
+            <button type="button" class="btn btn-outline-info" onclick="testConnection()">
+              <i class="bi bi-wifi me-1"></i>Test connessione MFH
+            </button>
+          </div>
+          <div id="settings-feedback"></div>
+        </form>
+        <hr>
+        <h6 class="text-muted mb-2">Informazioni</h6>
+        <div id="server-info" class="text-muted" style="font-size:.82rem"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── REPORT ── -->
+  <section id="sec-report" style="display:none">
+
+    <!-- KPI row 1: hero stats -->
+    <div class="row g-3 mb-3">
+
+      <!-- Ultimo QSO -->
+      <div class="col-12 col-lg-5">
+        <div class="card section-card h-100 border-0" style="background:linear-gradient(135deg,#1a3a5c,#254f7a)">
+          <div class="card-body text-white">
+            <div class="d-flex align-items-center mb-2">
+              <i class="bi bi-broadcast-pin fs-4 me-2" style="color:#f0b429"></i>
+              <span class="text-uppercase fw-bold small" style="letter-spacing:.08em;color:#f0b429">Ultimo QSO</span>
+              <button class="btn btn-sm btn-outline-light ms-auto py-0 px-2" onclick="loadReport()" title="Aggiorna"><i class="bi bi-arrow-clockwise"></i></button>
+            </div>
+            <div id="last-qso-callsign" class="display-6 fw-bold mb-1">—</div>
+            <div id="last-qso-detail" class="text-white-50 small">Nessun QSO registrato</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- QSO del mese -->
+      <div class="col-6 col-md-3 col-lg-2">
+        <div class="card section-card h-100 text-center">
+          <div class="card-body d-flex flex-column justify-content-center py-3">
+            <div class="fs-1 fw-bold text-primary" id="stat-month-total">—</div>
+            <div class="text-muted small">QSO del mese</div>
+            <div class="text-muted" style="font-size:.72rem" id="stat-month-label"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Ore TX -->
+      <div class="col-6 col-md-3 col-lg-2">
+        <div class="card section-card h-100 text-center">
+          <div class="card-body d-flex flex-column justify-content-center py-3">
+            <div class="fs-1 fw-bold text-success" id="stat-tx-hours">—</div>
+            <div class="text-muted small">Ore di TX</div>
+            <div class="text-muted" style="font-size:.72rem">con time_off registrato</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Totale e unici -->
+      <div class="col-6 col-md-3 col-lg-1">
+        <div class="card section-card h-100 text-center">
+          <div class="card-body d-flex flex-column justify-content-center py-3">
+            <div class="fs-2 fw-bold" id="stat-total-all" style="color:#1a3a5c">—</div>
+            <div class="text-muted small">QSO totali</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3 col-lg-2">
+        <div class="card section-card h-100 text-center">
+          <div class="card-body d-flex flex-column justify-content-center py-3">
+            <div class="fs-2 fw-bold text-info" id="stat-unique-calls">—</div>
+            <div class="text-muted small">Nominativi unici</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- KPI row 2: top banda / modo -->
+    <div class="row g-3 mb-3">
+      <div class="col-12 col-md-6">
+        <div class="card section-card">
+          <div class="card-header d-flex align-items-center gap-2">
+            <i class="bi bi-reception-4 text-primary"></i> Banda più utilizzata
+          </div>
+          <div class="card-body">
+            <div class="d-flex align-items-center mb-2">
+              <span class="fs-3 fw-bold me-2" id="top-band-name">—</span>
+              <span class="text-muted small" id="top-band-count"></span>
+            </div>
+            <div id="bands-bars"></div>
+          </div>
+        </div>
+      </div>
+      <div class="col-12 col-md-6">
+        <div class="card section-card">
+          <div class="card-header d-flex align-items-center gap-2">
+            <i class="bi bi-soundwave text-success"></i> Modo più utilizzato
+          </div>
+          <div class="card-body">
+            <div class="d-flex align-items-center mb-2">
+              <span class="fs-3 fw-bold me-2" id="top-mode-name">—</span>
+              <span class="text-muted small" id="top-mode-count"></span>
+            </div>
+            <div id="modes-bars"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Row 3: trend mensile + top callsign -->
+    <div class="row g-3 mb-3">
+      <div class="col-12 col-md-8">
+        <div class="card section-card">
+          <div class="card-header"><i class="bi bi-graph-up me-1"></i>Trend ultimi 6 mesi</div>
+          <div class="card-body">
+            <div id="monthly-chart" style="height:140px;display:flex;align-items:flex-end;gap:6px;overflow-x:auto;padding-bottom:4px"></div>
+          </div>
+        </div>
+      </div>
+      <div class="col-12 col-md-4">
+        <div class="card section-card">
+          <div class="card-header"><i class="bi bi-globe2 me-1 text-info"></i>Top 5 DXCC</div>
+          <div class="card-body p-0">
+            <ul class="list-group list-group-flush" id="top-dxcc-list">
+              <li class="list-group-item text-muted">Caricamento…</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Row 4: QSO per antenna + QSO per giorno -->
+    <div class="row g-3 mb-3">
+      <div class="col-12 col-md-5">
+        <div class="card section-card">
+          <div class="card-header"><i class="bi bi-reception-4 me-1 text-primary"></i>QSO per antenna</div>
+          <div class="card-body">
+            <div id="antenna-bars"></div>
+          </div>
+        </div>
+      </div>
+      <div class="col-12 col-md-7">
+        <div class="card section-card">
+          <div class="card-header"><i class="bi bi-calendar3 me-1"></i>QSO per giorno (mese corrente)</div>
+          <div class="card-body">
+            <div id="daily-chart" style="min-height:60px;display:flex;align-items:flex-end;gap:3px;overflow-x:auto;padding-bottom:4px"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ── MAPPA QSO ── -->
+  <section id="sec-map" style="display:none">
+    <!-- Filter bar -->
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+      <h5 class="mb-0"><i class="bi bi-map me-1"></i>Mappa QSO</h5>
+      <div class="btn-group btn-group-sm" role="group" id="map-period-btns">
+        <button type="button" class="btn btn-outline-primary active" data-period="today"    onclick="setMapPeriod('today')">Oggi</button>
+        <button type="button" class="btn btn-outline-primary"        data-period="week"     onclick="setMapPeriod('week')">7 giorni</button>
+        <button type="button" class="btn btn-outline-primary"        data-period="month"    onclick="setMapPeriod('month')">30 giorni</button>
+        <button type="button" class="btn btn-outline-primary"        data-period="all"      onclick="setMapPeriod('all')">Tutto</button>
+      </div>
+    </div>
+    <!-- Stats bar -->
+    <div id="map-stats" class="d-flex flex-wrap gap-3 mb-2" style="font-size:.85rem">
+      <span class="badge bg-primary fs-6" id="stat-total">— QSO</span>
+      <span class="badge bg-success fs-6" id="stat-grid">— con gridsquare</span>
+      <span class="badge bg-warning text-dark fs-6" id="stat-countries">— prefissi</span>
+      <span class="badge bg-secondary fs-6" id="stat-band">—</span>
+      <span class="badge bg-info text-dark fs-6" id="stat-mode">—</span>
+    </div>
+    <!-- Map container -->
+    <div class="card section-card mb-3">
+      <div id="qso-map" style="height:480px;border-radius:12px;"></div>
+    </div>
+    <!-- Band legend -->
+    <div id="map-legend" class="d-flex flex-wrap gap-2" style="font-size:.8rem"></div>
+  </section>
+
+  <!-- ── STAZIONE ── -->
+  <section id="sec-station" style="display:none">
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+      <h5 class="mb-0"><i class="bi bi-broadcast-pin me-1"></i>La mia stazione</h5>
+      <button class="btn btn-sm btn-ham-primary" onclick="openEquipmentModal()">
+        <i class="bi bi-plus-lg me-1"></i>Aggiungi
+      </button>
+    </div>
+    <!-- Tabs -->
+    <ul class="nav nav-tabs mb-3" id="station-tabs">
+      <li class="nav-item"><button class="nav-link active" onclick="filterEquipment('radio',this)"><i class="bi bi-radio me-1"></i>Ricetrasmettitori</button></li>
+      <li class="nav-item"><button class="nav-link" onclick="filterEquipment('antenna',this)"><i class="bi bi-reception-4 me-1"></i>Antenne</button></li>
+      <li class="nav-item"><button class="nav-link" onclick="filterEquipment('accessory',this)"><i class="bi bi-plug me-1"></i>Accessori</button></li>
+      <li class="nav-item"><button class="nav-link" onclick="filterEquipment('',this)"><i class="bi bi-list-ul me-1"></i>Tutto</button></li>
+    </ul>
+    <!-- Equipment cards grid -->
+    <div id="equipment-grid" class="row g-3">
+      <div class="col-12 text-center text-muted py-4">Caricamento…</div>
+    </div>
+  </section>
+
+</div><!-- /container -->
+
+<!-- Toast container -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3">
+  <div id="app-toast" class="toast align-items-center" role="alert" aria-live="assertive" aria-atomic="true">
+    <div class="d-flex">
+      <div class="toast-body" id="toast-body">Messaggio</div>
+      <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast"></button>
+    </div>
+  </div>
+</div>
+
+<!-- Equipment modal -->
+<div class="modal fade" id="equipmentModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="eq-modal-title"><i class="bi bi-plus-circle me-2"></i>Aggiungi apparato</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="equipment-form" novalidate>
+          <input type="hidden" id="eq-edit-id">
+          <div class="row g-3">
+            <div class="col-12 col-md-4">
+              <label class="form-label">Tipo <span class="required-star">*</span></label>
+              <select class="form-select" id="eq-type" onchange="updateEquipmentForm()">
+                <option value="radio">📻 Ricetrasmettitore</option>
+                <option value="antenna">📡 Antenna</option>
+                <option value="accessory">🔌 Accessorio</option>
+              </select>
+            </div>
+            <div class="col-12 col-md-8">
+              <label class="form-label">Nome / descrizione <span class="required-star">*</span></label>
+              <input type="text" class="form-control" id="eq-name" placeholder="Es. Icom IC-7300" required>
+            </div>
+            <div class="col-6 col-md-4">
+              <label class="form-label">Marca</label>
+              <input type="text" class="form-control" id="eq-brand" placeholder="Es. Icom">
+            </div>
+            <div class="col-6 col-md-4">
+              <label class="form-label">Modello</label>
+              <input type="text" class="form-control" id="eq-model" placeholder="Es. IC-7300">
+            </div>
+            <div class="col-6 col-md-4">
+              <label class="form-label">Copertura bande</label>
+              <input type="text" class="form-control" id="eq-bands" placeholder="Es. HF 160-10m, 6m">
+            </div>
+            <!-- Radio-specific -->
+            <div class="col-6 col-md-3 eq-field-radio">
+              <label class="form-label">Potenza TX (W)</label>
+              <input type="number" class="form-control" id="eq-power" placeholder="100" min="0">
+            </div>
+            <!-- Antenna-specific -->
+            <div class="col-6 col-md-3 eq-field-antenna" style="display:none">
+              <label class="form-label">Guadagno (dBi)</label>
+              <input type="number" class="form-control" id="eq-gain" placeholder="0.0" step="0.1">
+            </div>
+            <div class="col-6 col-md-3 eq-field-antenna" style="display:none">
+              <label class="form-label">Altezza (m)</label>
+              <input type="number" class="form-control" id="eq-height" placeholder="10" min="0" step="0.5">
+            </div>
+            <div class="col-6 col-md-3">
+              <label class="form-label">Connettore</label>
+              <select class="form-select" id="eq-connector">
+                <option value="">—</option>
+                <option>PL259 / SO239</option>
+                <option>N</option>
+                <option>BNC</option>
+                <option>SMA</option>
+                <option>XLR</option>
+                <option>RCA</option>
+              </select>
+            </div>
+            <div class="col-12">
+              <label class="form-label">Note</label>
+              <textarea class="form-control" id="eq-notes" rows="2" placeholder="Note aggiuntive…"></textarea>
+            </div>
+            <div class="col-12">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="eq-active" checked>
+                <label class="form-check-label" for="eq-active">In uso / attivo</label>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+        <button type="button" class="btn btn-ham-primary" onclick="submitEquipment()">
+          <i class="bi bi-save me-1"></i><span id="eq-submit-label">Salva</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm delete modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-trash text-danger me-2"></i>Elimina</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="delete-modal-body">Sei sicuro?</div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+        <button type="button" class="btn btn-danger" id="delete-confirm-btn">Elimina</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer class="text-center py-3 mt-2" style="font-size:.75rem;color:#6c757d;border-top:1px solid rgba(0,0,0,.08)">
+  <i class="bi bi-broadcast-pin me-1"></i>
+  Ham Radio Logbook &mdash; &copy; <span id="footer-year"></span>
+  <strong>IU8VBG</strong> &mdash; Tutti i diritti riservati
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="/app.js"></script>
+<script>document.getElementById('footer-year').textContent = new Date().getFullYear();</script>
+</body>
+</html>

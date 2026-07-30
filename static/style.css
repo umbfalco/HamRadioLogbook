@@ -1,0 +1,213 @@
+/* ============================================================
+   Ham Radio Logbook — custom styles
+   ============================================================ */
+
+:root {
+  --ham-navy:   #1a3a5c;
+  --ham-gold:   #f0b429;
+  --ham-blue:   #4fc3f7;
+  --ham-green:  #4caf50;
+  --ham-red:    #f44336;
+  --ham-orange: #ff9800;
+}
+
+/* ── Base ───────────────────────────────────────────────────── */
+body {
+  font-size: 1rem;
+  background: #f4f6f9;
+  color: #212529;
+}
+
+/* ── Navbar ─────────────────────────────────────────────────── */
+.navbar-ham {
+  background: var(--ham-navy) !important;
+}
+.navbar-ham .navbar-brand {
+  font-weight: 700;
+  letter-spacing: .04em;
+  color: var(--ham-gold) !important;
+}
+.navbar-ham .nav-link {
+  color: rgba(255,255,255,.8) !important;
+}
+.navbar-ham .nav-link.active {
+  color: var(--ham-gold) !important;
+}
+
+/* ── Sync badge ─────────────────────────────────────────────── */
+#sync-badge {
+  font-size: .7rem;
+  cursor: pointer;
+}
+
+/* ── Section cards ──────────────────────────────────────────── */
+.section-card {
+  border: none;
+  box-shadow: 0 2px 8px rgba(0,0,0,.08);
+  border-radius: 12px;
+}
+
+/* ── QSO table ──────────────────────────────────────────────── */
+#qso-table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+#qso-table th {
+  background: var(--ham-navy);
+  color: #fff;
+  white-space: nowrap;
+  font-size: .82rem;
+}
+#qso-table tbody tr:hover {
+  background: rgba(79,195,247,.08);
+}
+
+/* Band colour dots */
+.band-dot {
+  display: inline-block;
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  margin-right: 4px;
+}
+.band-160m { background: #9c27b0; }
+.band-80m  { background: #673ab7; }
+.band-40m  { background: #3f51b5; }
+.band-30m  { background: #2196f3; }
+.band-20m  { background: #009688; }
+.band-17m  { background: #4caf50; }
+.band-15m  { background: #8bc34a; }
+.band-12m  { background: #cddc39; }
+.band-10m  { background: #ff9800; }
+.band-6m   { background: #ff5722; }
+.band-2m   { background: #f44336; }
+.band-70cm { background: #e91e63; }
+
+/* ── Form ───────────────────────────────────────────────────── */
+.form-label { font-weight: 600; font-size: .88rem; }
+.required-star { color: var(--ham-red); }
+
+/* ── Buttons ────────────────────────────────────────────────── */
+.btn-ham-primary {
+  background: var(--ham-navy);
+  border-color: var(--ham-navy);
+  color: #fff;
+}
+.btn-ham-primary:hover {
+  background: #254f7a;
+  border-color: #254f7a;
+  color: #fff;
+}
+.btn-ham-gold {
+  background: var(--ham-gold);
+  border-color: var(--ham-gold);
+  color: #1a1a1a;
+}
+.btn-ham-gold:hover {
+  background: #d9a020;
+  border-color: #d9a020;
+  color: #1a1a1a;
+}
+
+/* ── Offline banner ─────────────────────────────────────────── */
+#offline-banner {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 9999;
+  background: var(--ham-orange);
+  color: #fff;
+  text-align: center;
+  padding: .4rem;
+  font-weight: 600;
+  font-size: .9rem;
+  display: none;
+}
+
+/* ── Sync indicator dot ─────────────────────────────────────── */
+.sync-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 5px;
+}
+.sync-dot.ok   { background: var(--ham-green); }
+.sync-dot.warn { background: var(--ham-orange); }
+.sync-dot.off  { background: #aaa; }
+
+/* ── ADIF drop zone ─────────────────────────────────────────── */
+#adif-dropzone {
+  border: 2px dashed #adb5bd;
+  border-radius: 12px;
+  padding: 2rem;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color .2s, background .2s;
+}
+#adif-dropzone.dragover {
+  border-color: var(--ham-blue);
+  background: rgba(79,195,247,.08);
+}
+
+/* ── Toast ──────────────────────────────────────────────────── */
+.toast-container { z-index: 11000; }
+
+/* ── Report section ──────────────────────────────────────────── */
+#monthly-chart > div:hover > div:nth-child(2),
+#daily-chart   > div:hover > div:nth-child(2) {
+  opacity: 1 !important;
+  filter: brightness(1.1);
+}
+#monthly-chart, #daily-chart { padding: 4px 0; }
+
+/* ── Map section ─────────────────────────────────────────────── */
+#qso-map {
+  width: 100%;
+  z-index: 1;
+}
+.leaflet-popup-content { font-size: .85rem; line-height: 1.5; }
+
+/* ── Equipment cards ─────────────────────────────────────────── */
+.opacity-60 { opacity: .6; }
+#equipment-grid .card { transition: transform .15s, box-shadow .15s; }
+#equipment-grid .card:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,.12); }
+
+/* ── Map period button group ─────────────────────────────────── */
+#map-period-btns .btn.active {
+  background: var(--ham-navy);
+  border-color: var(--ham-navy);
+  color: #fff;
+}
+
+/* ── Dark mode extra ─────────────────────────────────────────── */
+@media (prefers-color-scheme: dark) {
+  #equipment-grid .card { background: #1f2937; }
+  .dropdown-menu { background: #1f2937; border-color: #374151; }
+  .dropdown-item { color: #e5e7eb; }
+  .dropdown-item:hover { background: #374151; }
+}
+@media (max-width: 575px) {
+  .section-card { border-radius: 0; }
+  .container-main { padding: 0; }
+  #qso-table th, #qso-table td { font-size: .78rem; padding: .35rem .4rem; }
+  .btn { font-size: .9rem; }
+}
+
+/* ── Dark mode ──────────────────────────────────────────────── */
+@media (prefers-color-scheme: dark) {
+  body { background: #111827; color: #e5e7eb; }
+  .section-card { background: #1f2937; }
+  .card { background: #1f2937; border-color: #374151; }
+  .form-control, .form-select {
+    background: #374151; border-color: #4b5563; color: #e5e7eb;
+  }
+  .form-control:focus, .form-select:focus {
+    background: #374151; color: #fff; border-color: var(--ham-blue);
+    box-shadow: 0 0 0 .2rem rgba(79,195,247,.25);
+  }
+  #qso-table tbody tr:nth-child(even) { background: rgba(255,255,255,.03); }
+  #qso-table tbody tr:hover { background: rgba(79,195,247,.12); }
+  .table { color: #e5e7eb; }
+  .modal-content { background: #1f2937; color: #e5e7eb; }
+  .modal-header { border-color: #374151; }
+  .modal-footer { border-color: #374151; }
+  .input-group-text { background: #374151; border-color: #4b5563; color: #e5e7eb; }
+}

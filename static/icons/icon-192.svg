@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192">
+  <rect width="192" height="192" rx="32" fill="#1a3a5c"/>
+  <!-- Antenna mast -->
+  <line x1="96" y1="20" x2="96" y2="100" stroke="#f0b429" stroke-width="6" stroke-linecap="round"/>
+  <!-- Antenna arms -->
+  <line x1="60" y1="40" x2="132" y2="40" stroke="#f0b429" stroke-width="5" stroke-linecap="round"/>
+  <line x1="68" y1="55" x2="124" y2="55" stroke="#f0b429" stroke-width="4" stroke-linecap="round"/>
+  <line x1="76" y1="68" x2="116" y2="68" stroke="#f0b429" stroke-width="3" stroke-linecap="round"/>
+  <!-- Radio waves -->
+  <path d="M50 110 Q96 90 142 110" fill="none" stroke="#4fc3f7" stroke-width="4" stroke-linecap="round" opacity="0.9"/>
+  <path d="M36 128 Q96 100 156 128" fill="none" stroke="#4fc3f7" stroke-width="4" stroke-linecap="round" opacity="0.6"/>
+  <!-- Log text -->
+  <rect x="30" y="140" width="132" height="36" rx="6" fill="#f0b429" opacity="0.15"/>
+  <text x="96" y="164" font-family="monospace" font-size="20" font-weight="bold" fill="#f0b429" text-anchor="middle">LOGBOOK</text>
+</svg>

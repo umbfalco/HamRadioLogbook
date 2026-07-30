@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ham Radio Logbook — Accesso</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <style>
+    body {
+      min-height: 100vh;
+      background: linear-gradient(135deg, #0d1b2a 0%, #1a3a5c 60%, #0d1b2a 100%);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .login-card {
+      width: 100%; max-width: 400px;
+      border-radius: 16px; overflow: hidden;
+      box-shadow: 0 24px 64px rgba(0,0,0,.5);
+    }
+    .login-header {
+      background: linear-gradient(135deg, #1a3a5c, #0d1b2a);
+      padding: 2rem 2rem 1.5rem;
+      text-align: center; color: #fff;
+    }
+    .login-header .icon {
+      font-size: 3rem; color: #ffd700; display: block; margin-bottom: .5rem;
+    }
+    .login-header h1 { font-size: 1.4rem; font-weight: 700; margin: 0; }
+    .login-header p  { font-size: .8rem; color: #90caf9; margin: .25rem 0 0; }
+    .login-body { background: #fff; padding: 2rem; }
+    .dark-mode .login-body { background: #1e2a3a; color: #e0e0e0; }
+    .btn-login {
+      background: linear-gradient(135deg, #1a3a5c, #1565c0);
+      border: none; color: #fff; font-weight: 600; letter-spacing: .5px;
+      transition: opacity .2s;
+    }
+    .btn-login:hover { opacity: .9; color: #fff; }
+    .btn-login:disabled { opacity: .6; }
+    #error-msg { display: none; }
+  </style>
+</head>
+<body>
+  <div class="login-card">
+    <div class="login-header">
+      <i class="bi bi-broadcast icon"></i>
+      <h1>Ham Radio Logbook</h1>
+      <p>Accedi per continuare</p>
+    </div>
+    <div class="login-body">
+      <form id="login-form" novalidate>
+        <div class="mb-3">
+          <label class="form-label fw-semibold" for="username">
+            <i class="bi bi-person me-1"></i>Nominativo / Username
+          </label>
+          <input type="text" class="form-control" id="username" name="username"
+            placeholder="es. IU8VBG" autocomplete="username" required
+            oninput="this.value=this.value.toUpperCase()">
+        </div>
+        <div class="mb-4">
+          <label class="form-label fw-semibold" for="password">
+            <i class="bi bi-lock me-1"></i>Password
+          </label>
+          <div class="input-group">
+            <input type="password" class="form-control" id="password" name="password"
+              placeholder="••••••••" autocomplete="current-password" required>
+            <button type="button" class="btn btn-outline-secondary" id="toggle-pw"
+              title="Mostra/nascondi password">
+              <i class="bi bi-eye" id="pw-icon"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="alert alert-danger py-2 small" id="error-msg" role="alert">
+          <i class="bi bi-exclamation-triangle me-1"></i>
+          <span id="error-text"></span>
+        </div>
+
+        <button type="submit" class="btn btn-login w-100 py-2" id="login-btn">
+          <i class="bi bi-box-arrow-in-right me-1"></i> Accedi
+        </button>
+      </form>
+      <p class="text-center mt-3 mb-1" style="font-size:.82rem;color:#9e9e9e">
+        Non hai un account?
+        <a href="/register" style="color:#f0b429;font-weight:600;text-decoration:none">Registrati</a>
+      </p>
+      <p class="text-center mb-0" style="font-size:.72rem;color:#9e9e9e">
+        <i class="bi bi-broadcast-pin me-1"></i>
+        Ham Radio Logbook &mdash; &copy; <span id="footer-year"></span>
+        <strong>IU8VBG</strong>
+      </p>
+    </div>
+  </div>
+
+  <script>
+    // ── Toggle password visibility ──────────────────────────────
+    document.getElementById('toggle-pw').addEventListener('click', () => {
+      const pw = document.getElementById('password');
+      const ic = document.getElementById('pw-icon');
+      const isText = pw.type === 'text';
+      pw.type = isText ? 'password' : 'text';
+      ic.className = isText ? 'bi bi-eye' : 'bi bi-eye-slash';
+    });
+
+    // ── Login form submit ───────────────────────────────────────
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn     = document.getElementById('login-btn');
+      const errDiv  = document.getElementById('error-msg');
+      const errText = document.getElementById('error-text');
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value;
+
+      if (!username || !password) {
+        errText.textContent = 'Inserisci nominativo e password.';
+        errDiv.style.display = '';
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Accesso…';
+      errDiv.style.display = 'none';
+
+      try {
+        const r = await fetch('/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password }),
+        });
+        const d = await r.json();
+        if (d.ok) {
+          window.location.href = '/';
+        } else {
+          errText.textContent = d.error || 'Errore di accesso.';
+          errDiv.style.display = '';
+          btn.disabled = false;
+          btn.innerHTML = '<i class="bi bi-box-arrow-in-right me-1"></i> Accedi';
+          document.getElementById('password').value = '';
+          document.getElementById('password').focus();
+        }
+      } catch (_) {
+        errText.textContent = 'Impossibile contattare il server.';
+        errDiv.style.display = '';
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-box-arrow-in-right me-1"></i> Accedi';
+      }
+    });
+
+    // Auto-focus first empty field
+    const u = document.getElementById('username');
+    if (u.value) document.getElementById('password').focus();
+    else u.focus();
+    document.getElementById('footer-year').textContent = new Date().getFullYear();
+  </script>
+</body>
+</html>
