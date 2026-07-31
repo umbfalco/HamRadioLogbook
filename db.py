@@ -48,20 +48,25 @@ _DXCC_NAMES = {
     '4X':'Israele','4Z':'Israele',
 }
 
+import logging as _logging
+
 # On Render (or any server with a persistent disk), set DATABASE_PATH to the
 # volume mount path, e.g. DATABASE_PATH=/var/data/logbook.db
 # Falls back to the app directory for local development.
 _default_db = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logbook.db")
-DB_PATH = os.environ.get("DATABASE_PATH", _default_db)
+_configured  = os.environ.get("DATABASE_PATH", "")
+DB_PATH      = _configured if _configured else _default_db
 
-# Create parent directory only if needed and permitted.
-# On Render the persistent disk is already mounted by the platform — no mkdir needed.
+# Validate that the parent directory exists and is writable.
+# If not (e.g. Render disk not yet attached), fall back to the app directory.
 _db_dir = os.path.dirname(DB_PATH)
-if _db_dir and not os.path.exists(_db_dir):
-    try:
-        os.makedirs(_db_dir, exist_ok=True)
-    except PermissionError:
-        pass  # Mounted volume: directory exists but was not yet visible; let SQLite fail clearly.
+if _db_dir and not os.path.isdir(_db_dir):
+    _logging.warning(
+        "DATABASE_PATH directory '%s' does not exist or is not mounted. "
+        "Falling back to '%s'. Add a Persistent Disk on Render to fix this.",
+        _db_dir, _default_db
+    )
+    DB_PATH = _default_db
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS users (

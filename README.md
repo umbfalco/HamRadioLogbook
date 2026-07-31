@@ -194,7 +194,37 @@ python manage_db.py reset     # ⚠ Reset completo (chiede conferma)
 
 ## 🌐 Deployment in produzione
 
-### ☁️ Render (cloud — raccomandato)
+### 🐍 PythonAnywhere Basic (gratuito)
+
+Soluzione zero-costo per uso personale.
+
+**1. Console Bash su PA:**
+```bash
+git clone https://github.com/IU8VBG/ham-radio-logbook.git
+mkvirtualenv --python=/usr/bin/python3.10 logbook
+pip install -r requirements.txt
+python manage_db.py init
+```
+
+**2. Web tab → Manual configuration → Python 3.10**
+- Source code: `/home/<USERNAME>/ham-radio-logbook`
+- Virtualenv: `/home/<USERNAME>/.virtualenvs/logbook`
+- Static files: URL `/static/` → `/home/<USERNAME>/ham-radio-logbook/static/`
+
+**3. File WSGI** — sostituire il contenuto generato con:
+```python
+import sys, os
+PROJECT_DIR = '/home/<USERNAME>/ham-radio-logbook'
+sys.path.insert(0, PROJECT_DIR); os.chdir(PROJECT_DIR)
+from dotenv import load_dotenv; load_dotenv(PROJECT_DIR + '/.env')
+from app import app as application
+```
+
+> 📖 Guida completa passo-passo: [`docs/INSTALLAZIONE.md § 7.6`](docs/INSTALLAZIONE.md)
+
+---
+
+### ☁️ Render (cloud — disco persistente)
 
 Il modo più semplice per pubblicare online senza gestire server.
 
@@ -264,7 +294,7 @@ sudo certbot --nginx -d logbook.mio-dominio.it
 | Documento | Contenuto |
 |-----------|-----------|
 | [`docs/TECNICA.md`](docs/TECNICA.md) | Architettura, schema DB, API, moduli, estendibilità |
-| [`docs/INSTALLAZIONE.md`](docs/INSTALLAZIONE.md) | Installazione locale, Render (cloud), VPS, Nginx, systemd, HTTPS, backup |
+| [`docs/INSTALLAZIONE.md`](docs/INSTALLAZIONE.md) | Installazione locale, PythonAnywhere, Render, VPS Nginx+systemd, backup |
 | [`docs/UTENTE.md`](docs/UTENTE.md) | Manuale d'uso completo per l'operatore |
 
 ---

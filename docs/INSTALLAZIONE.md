@@ -18,6 +18,7 @@
    - 7.3 [Systemd service](#73-systemd-service)
    - 7.4 [HTTPS con Let's Encrypt](#74-https-con-lets-encrypt)
    - 7.5 [Deploy su Render (cloud)](#75-deploy-su-render-cloud)
+   - 7.6 [Deploy su PythonAnywhere (Basic)](#76-deploy-su-pythonanywhere-basic)
 8. [Aggiornamento](#8-aggiornamento)
 9. [Backup e ripristino](#9-backup-e-ripristino)
 10. [Risoluzione problemi comuni](#10-risoluzione-problemi-comuni)
@@ -396,6 +397,160 @@ Browser / Smartphone
   Persistent Disk /var/data
   └── logbook.db  (SQLite)
 ```
+
+---
+
+### 7.6 Deploy su PythonAnywhere (Basic)
+
+[PythonAnywhere](https://www.pythonanywhere.com) piano **Basic** (gratuito) supporta una web app Flask con filesystem persistente — ideale per iniziare senza costi.
+
+> **Limiti del piano Basic:**
+> - 1 web app
+> - 512 MB di storage
+> - CPU limitata (sufficiente per uso personale)
+> - La sync automatica MapForHam in background **non è garantita** (PA può mettere in sleep il worker)
+> - Dominio: `<username>.pythonanywhere.com` (HTTPS incluso)
+
+#### Passo 1 — Crea l'account e apri una console Bash
+
+1. Registrati su [pythonanywhere.com](https://www.pythonanywhere.com)
+2. Dashboard → **Consoles** → **Bash** → apri una nuova console
+
+#### Passo 2 — Carica il codice
+
+**Opzione A — da GitHub (consigliato):**
+```bash
+git clone https://github.com/IU8VBG/ham-radio-logbook.git
+cd ham-radio-logbook
+```
+
+**Opzione B — upload manuale:**
+Dashboard → **Files** → carica il file ZIP → nella console:
+```bash
+unzip ham-radio-logbook.zip
+cd ham-radio-logbook
+```
+
+#### Passo 3 — Crea il virtualenv e installa le dipendenze
+
+```bash
+# Crea il virtualenv (usa Python 3.10 o superiore)
+mkvirtualenv --python=/usr/bin/python3.10 logbook
+
+# Installa le dipendenze
+cd ~/ham-radio-logbook
+pip install -r requirements.txt
+```
+
+> **Nota:** su PythonAnywhere `gunicorn` non è necessario — PA gestisce il server WSGI. Rimane in `requirements.txt` senza problemi.
+
+#### Passo 4 — Configura il file `.env`
+
+Nella console Bash:
+```bash
+cp .env.example .env
+nano .env
+```
+
+Valori minimi da compilare:
+```ini
+SECRET_KEY=<stringa-casuale-64-chars>
+DEBUG=false
+SESSION_LIFETIME_DAYS=30
+SYNC_INTERVAL_MIN=5
+```
+
+Per generare la `SECRET_KEY`:
+```bash
+python -c "import secrets; print(secrets.token_hex(32))"
+```
+
+> **DATABASE_PATH**: non serve configurarlo — il database viene salvato automaticamente in `~/ham-radio-logbook/logbook.db` che è **persistente** su PythonAnywhere.
+
+#### Passo 5 — Inizializza il database
+
+```bash
+cd ~/ham-radio-logbook
+python manage_db.py init
+```
+
+#### Passo 6 — Configura la Web App
+
+1. Dashboard PA → scheda **Web** → **Add a new web app**
+2. Scegli: **Manual configuration** → **Python 3.10**
+3. Nella sezione **Code**:
+   - **Source code:** `/home/<USERNAME>/ham-radio-logbook`
+   - **Working directory:** `/home/<USERNAME>/ham-radio-logbook`
+4. Nella sezione **Virtualenv:**
+   - `/home/<USERNAME>/.virtualenvs/logbook`
+
+#### Passo 7 — Configura il file WSGI
+
+1. Nella sezione **Code** clicca il link al file WSGI (es. `/var/www/<USERNAME>_pythonanywhere_com_wsgi.py`)
+2. **Sostituisci tutto il contenuto** con:
+
+```python
+import sys
+import os
+
+PROJECT_DIR = '/home/<USERNAME>/ham-radio-logbook'
+if PROJECT_DIR not in sys.path:
+    sys.path.insert(0, PROJECT_DIR)
+os.chdir(PROJECT_DIR)
+
+try:
+    from dotenv import load_dotenv
+    load_dotenv(os.path.join(PROJECT_DIR, '.env'))
+except ImportError:
+    pass
+
+from app import app as application  # noqa
+```
+
+> Sostituisci `<USERNAME>` con il tuo username PythonAnywhere (es. `iu8vbg`).
+
+3. Salva il file (pulsante **Save** in alto).
+
+#### Passo 8 — Mappa i file statici
+
+Nella sezione **Static files** della web app:
+
+| URL | Directory |
+|-----|-----------|
+| `/static/` | `/home/<USERNAME>/ham-radio-logbook/static/` |
+
+Clicca **Save**.
+
+#### Passo 9 — Avvia la web app
+
+Clicca il pulsante verde **Reload** nella scheda Web.
+
+L'app sarà disponibile su: `https://<USERNAME>.pythonanywhere.com`
+
+Aprire `/register` per creare il primo account.
+
+#### Aggiornamento del codice
+
+Nella console Bash:
+```bash
+cd ~/ham-radio-logbook
+git pull
+pip install -r requirements.txt --upgrade
+python manage_db.py migrate
+```
+
+Poi dalla scheda Web: **Reload**.
+
+#### Note importanti per PA Basic
+
+| Aspetto | Comportamento |
+|---------|---------------|
+| **Database** | `logbook.db` in `~/ham-radio-logbook/` — persistente ✅ |
+| **HTTPS** | Incluso automaticamente su `*.pythonanywhere.com` ✅ |
+| **Sync MapForHam** | Il thread di sync parte con il worker, ma PA può metterlo in sleep. La sync manuale dal pannello impostazioni funziona sempre ✅ |
+| **Export PDF/CSV** | Funziona normalmente ✅ |
+| **PWA offline** | Funziona nel browser, ma PA ha limiti di banda ⚠️ |
+| **Background tasks** | Non disponibili sul piano Basic — no cron job ❌ |
 
 ---
 
