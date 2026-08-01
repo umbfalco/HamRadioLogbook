@@ -65,11 +65,12 @@ def add_security_headers(response):
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["Content-Security-Policy"] = (
         "default-src 'self'; "
-        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com; "
-        "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com; "
-        "font-src 'self' https://cdn.jsdelivr.net; "
+        "script-src 'self' 'unsafe-inline'; "
+        "style-src 'self' 'unsafe-inline'; "
+        "font-src 'self'; "
         "img-src 'self' data: blob: https://*.tile.openstreetmap.org; "
-        "connect-src 'self' http://api.hamdb.org;"
+        "connect-src 'self' https://api.hamdb.org http://api.hamdb.org "
+        "https://www.mapforham.com;"
     )
     return response
 

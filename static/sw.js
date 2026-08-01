@@ -6,8 +6,19 @@
      replayed when connection is restored
    ============================================================ */
 
-const CACHE_NAME = 'ham-logbook-v1';
-const APP_SHELL = ['/', '/style.css', '/app.js', '/manifest.json'];
+const CACHE_NAME = 'ham-logbook-v2';
+const APP_SHELL = [
+  '/',
+  '/style.css',
+  '/app.js',
+  '/manifest.json',
+  '/vendor/bootstrap.min.css',
+  '/vendor/bootstrap.bundle.min.js',
+  '/vendor/bootstrap-icons.min.css',
+  '/vendor/fonts/bootstrap-icons.woff2',
+  '/vendor/leaflet.css',
+  '/vendor/leaflet.js',
+];
 
 // ── Install: cache app shell ─────────────────────────────────
 self.addEventListener('install', event => {
